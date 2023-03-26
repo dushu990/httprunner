@@ -1,14 +1,61 @@
 # Release History
 
-## v4.2.0 (2022-07-26)
+## v4.3.2 (2022-12-26)
+
+**go version**
+
+- feat: run Android UI automation with adb by default, add `uixt.WithUIA2(true)` option to use uiautomator2
+- refactor: remove unused APIs in UI automation
+- refactor: convert cases by specifying from/to format
+- change: remove traceroute/curl sub commands
+
+## v4.3.1 (2022-12-22)
+
+**go version**
+
+- feat: add option WithScreenShot
+- feat: run xctest before start ios automation
+- feat: run step with specified loop times
+- feat: add options for FindTexts
+- feat: capture pcap file for iOS, including CLI `hrp ios pcap` and option `uixt.WithIOSPcapOptions(...)`
+- feat: add performance monitor for iOS, including CLI `hrp ios perf` and options `uixt.WithIOSPerfOptions(...)`
+- refactor: move all UI APIs to uixt pkg
+- docs: add examples for UI APIs
+
+## v4.3.0 (2022-10-27)
+
+Release hrp sub package `uixt` to support iOS/Android UI automation testing 🎉
+
+- feat: support iOS UI automation with [WebDriverAgent] and [gwda]
+- feat: support Android UI automation with [uiautomator2] and [guia2]
+- feat: support UI recognition with [OCR service] and [gwda-ext-opencv]
+
+For iOS/Android device management:
+
+- feat: integrage ios device management with [gidevice]
+- feat: integrage android device management with [gadb]
+- feat: add simple commands to interact with iOS/Android devices, try `hrp ios` and `hrp adb`
+
+Other improvements:
+
+- feat: exit with specified code for different exceptions
+- refactor: make uixt/gadb/gidevice/boomer/httpstat as hrp sub package
+
+## v4.2.1 (2022-09-01)
+
+**go version**
+
+- fix: hrp boom duration still limited without specifying `--run-time`
+
+## v4.2.0 (2022-08-21)
 
 **go version**
 
 - feat: support distributed load testing on multi-machines
 - feat: support run/boom/convert curl command(s)
-- feat: support uploading file with indicated type and filename
-- feat: support to infer MIME type of the uploaded file automatically
-- feat: using `@FILEPATH` to indicate the path of the file
+- feat: add ping/dns/traceroute/curl sub commands
+- feat: improve builtin uploading feature, support `@` indicator and inferring MIME type
+- feat: hrp boom support setting duration of run time
 - change: support omitting websocket url if not necessary
 - change: support multiple websocket connections for each session
 - fix: optimize websocket step initialization
@@ -664,3 +711,11 @@ reference: [v2-changelog]
 [black]: https://github.com/psf/black
 [loguru]: https://github.com/Delgan/loguru
 [v2-changelog]: https://github.com/httprunner/httprunner/blob/v2/docs/CHANGELOG.md
+[WebDriverAgent]: https://github.com/appium/WebDriverAgent
+[uiautomator2]: https://github.com/appium/appium-uiautomator2-server
+[gidevice]: https://github.com/electricbubble/gidevice
+[gwda]: https://github.com/electricbubble/gwda
+[guia2]: https://github.com/electricbubble/guia2
+[gadb]: https://github.com/electricbubble/gadb
+[OCR service]: https://www.volcengine.com/product/text-recognition
+[gwda-ext-opencv]: https://github.com/electricbubble/gwda-ext-opencv

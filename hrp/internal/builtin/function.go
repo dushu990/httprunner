@@ -24,10 +24,13 @@ var Functions = map[string]interface{}{
 	"get_timestamp":          getTimestamp,    // call without arguments
 	"sleep":                  sleep,           // call with one argument
 	"gen_random_string":      genRandomString, // call with one argument
+	"random_int":             rand.Intn,       // call with one argument
+	"random_range":           random_range,    // call with two arguments
 	"max":                    math.Max,        // call with two arguments
 	"md5":                    MD5,             // call with one argument
 	"parameterize":           loadFromCSV,
 	"P":                      loadFromCSV,
+	"split_by_comma":         splitByComma, // call with one argument
 	"environ":                os.Getenv,
 	"ENV":                    os.Getenv,
 	"load_ws_message":        loadMessage,
@@ -46,6 +49,10 @@ func escapeQuotes(s string) string {
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
+}
+
+func random_range(a, b float64) float64 {
+	return a + rand.Float64()*(b-a)
 }
 
 func getTimestamp() int64 {
@@ -224,4 +231,8 @@ func multipartContentType(w *TFormDataWriter) string {
 		return ""
 	}
 	return w.Writer.FormDataContentType()
+}
+
+func splitByComma(s string) []string {
+	return strings.Split(s, ",")
 }

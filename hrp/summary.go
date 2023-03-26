@@ -13,6 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/httprunner/httprunner/v4/hrp/internal/builtin"
+	"github.com/httprunner/httprunner/v4/hrp/internal/env"
 	"github.com/httprunner/httprunner/v4/hrp/internal/version"
 )
 
@@ -26,7 +27,7 @@ func newOutSummary() *Summary {
 		Success: true,
 		Stat:    &Stat{},
 		Time: &TestCaseTime{
-			StartAt: time.Now(),
+			StartAt: env.StartTime,
 		},
 		Platform: platForm,
 	}
@@ -45,7 +46,7 @@ type Summary struct {
 func (s *Summary) appendCaseSummary(caseSummary *TestCaseSummary) {
 	s.Success = s.Success && caseSummary.Success
 	s.Stat.TestCases.Total += 1
-	s.Stat.TestSteps.Total += len(caseSummary.Records)
+	s.Stat.TestSteps.Total += caseSummary.Stat.Total
 	if caseSummary.Success {
 		s.Stat.TestCases.Success += 1
 	} else {
@@ -61,18 +62,18 @@ func (s *Summary) appendCaseSummary(caseSummary *TestCaseSummary) {
 		s.rootDir = caseSummary.RootDir
 	} else if s.rootDir != caseSummary.RootDir {
 		// if multiple testcases have different root path, use current working dir
-		s.rootDir, _ = os.Getwd()
+		s.rootDir = env.RootDir
 	}
 }
 
 func (s *Summary) genHTMLReport() error {
-	reportsDir := filepath.Join(s.rootDir, resultsDir)
+	reportsDir := filepath.Join(s.rootDir, env.ResultsDir)
 	err := builtin.EnsureFolderExists(reportsDir)
 	if err != nil {
 		return err
 	}
 
-	reportPath := filepath.Join(reportsDir, fmt.Sprintf("report-%v.html", s.Time.StartAt.Unix()))
+	reportPath := filepath.Join(reportsDir, "report.html")
 	file, err := os.OpenFile(reportPath, os.O_WRONLY|os.O_CREATE, 0o666)
 	if err != nil {
 		log.Error().Err(err).Msg("open file failed")
@@ -96,13 +97,13 @@ func (s *Summary) genHTMLReport() error {
 }
 
 func (s *Summary) genSummary() error {
-	reportsDir := filepath.Join(s.rootDir, resultsDir)
+	reportsDir := filepath.Join(s.rootDir, env.ResultsDir)
 	err := builtin.EnsureFolderExists(reportsDir)
 	if err != nil {
 		return err
 	}
 
-	summaryPath := filepath.Join(reportsDir, fmt.Sprintf("summary-%v.json", s.Time.StartAt.Unix()))
+	summaryPath := filepath.Join(reportsDir, "summary.json")
 	err = builtin.Dump2JSON(s, summaryPath)
 	if err != nil {
 		return err
@@ -113,11 +114,9 @@ func (s *Summary) genSummary() error {
 //go:embed internal/scaffold/templates/report/template.html
 var reportTemplate string
 
-const resultsDir = "reports"
-
 type Stat struct {
-	TestCases TestCaseStat `json:"testcases" yaml:"test_cases"`
-	TestSteps TestStepStat `json:"teststeps" yaml:"test_steps"`
+	TestCases TestCaseStat `json:"testcases" yaml:"testcases"`
+	TestSteps TestStepStat `json:"teststeps" yaml:"teststeps"`
 }
 
 type TestCaseStat struct {
@@ -151,7 +150,7 @@ type TestCaseSummary struct {
 	Stat    *TestStepStat  `json:"stat" yaml:"stat"`
 	Time    *TestCaseTime  `json:"time" yaml:"time"`
 	InOut   *TestCaseInOut `json:"in_out" yaml:"in_out"`
-	Log     string         `json:"log,omitempty" yaml:"log,omitempty"` // TODO
+	Logs    []interface{}  `json:"logs,omitempty" yaml:"logs,omitempty"`
 	Records []*StepResult  `json:"records" yaml:"records"`
 	RootDir string         `json:"root_dir" yaml:"root_dir"`
 }

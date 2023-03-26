@@ -5,12 +5,17 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/httprunner/funplugin"
 	"github.com/httprunner/funplugin/fungo"
-	"github.com/httprunner/httprunner/v4/hrp/internal/builtin"
-	"github.com/httprunner/httprunner/v4/hrp/internal/sdk"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+
+	"github.com/httprunner/httprunner/v4/hrp/internal/code"
+	"github.com/httprunner/httprunner/v4/hrp/internal/env"
+	"github.com/httprunner/httprunner/v4/hrp/internal/myexec"
+	"github.com/httprunner/httprunner/v4/hrp/internal/sdk"
 )
 
 const (
@@ -24,7 +29,7 @@ const (
 
 const projectInfoFile = "proj.json" // used for ensuring root project
 
-var pluginMap = map[string]funplugin.IPlugin{} // used for reusing plugin instance
+var pluginMap = sync.Map{} // used for reusing plugin instance
 
 func initPlugin(path, venv string, logOn bool) (plugin funplugin.IPlugin, err error) {
 	// plugin file not found
@@ -33,12 +38,13 @@ func initPlugin(path, venv string, logOn bool) (plugin funplugin.IPlugin, err er
 	}
 	pluginPath, err := locatePlugin(path)
 	if err != nil {
+		log.Warn().Str("path", path).Msg("locate plugin failed")
 		return nil, nil
 	}
 
 	// reuse plugin instance if it already initialized
-	if p, ok := pluginMap[pluginPath]; ok {
-		return p, nil
+	if p, ok := pluginMap.Load(pluginPath); ok {
+		return p.(funplugin.IPlugin), nil
 	}
 
 	pluginOptions := []funplugin.Option{funplugin.WithLogOn(logOn)}
@@ -49,14 +55,14 @@ func initPlugin(path, venv string, logOn bool) (plugin funplugin.IPlugin, err er
 		err = BuildPlugin(pluginPath, genPyPluginPath)
 		if err != nil {
 			log.Error().Err(err).Str("path", pluginPath).Msg("build plugin failed")
-			return nil, nil
+			return nil, err
 		}
 		pluginPath = genPyPluginPath
 
 		packages := []string{
 			fmt.Sprintf("funppy==%s", fungo.Version),
 		}
-		python3, err := builtin.EnsurePython3Venv(venv, packages...)
+		python3, err := myexec.EnsurePython3Venv(venv, packages...)
 		if err != nil {
 			log.Error().Err(err).
 				Interface("packages", packages).
@@ -70,11 +76,12 @@ func initPlugin(path, venv string, logOn bool) (plugin funplugin.IPlugin, err er
 	plugin, err = funplugin.Init(pluginPath, pluginOptions...)
 	if err != nil {
 		log.Error().Err(err).Msgf("init plugin failed: %s", pluginPath)
+		err = errors.Wrap(code.InitPluginFailed, err.Error())
 		return
 	}
 
 	// add plugin instance to plugin map
-	pluginMap[pluginPath] = plugin
+	pluginMap.Store(pluginPath, plugin)
 
 	// report event for initializing plugin
 	event := sdk.EventTracking{
@@ -108,7 +115,6 @@ func locatePlugin(path string) (pluginPath string, err error) {
 		return
 	}
 
-	log.Warn().Err(err).Str("path", path).Msg("plugin file not found")
 	return "", fmt.Errorf("plugin file not found")
 }
 
@@ -158,5 +164,5 @@ func GetProjectRootDirPath(path string) (rootDir string, err error) {
 	// failed to locate project root dir
 	// maybe project plugin debugtalk.xx and proj.json are not exist
 	// use current dir instead
-	return os.Getwd()
+	return env.RootDir, nil
 }

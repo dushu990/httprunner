@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"os"
 	"strings"
 	"time"
 
@@ -10,8 +9,8 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/httprunner/httprunner/v4/hrp"
-	"github.com/httprunner/httprunner/v4/hrp/internal/boomer"
 	"github.com/httprunner/httprunner/v4/hrp/internal/builtin"
+	"github.com/httprunner/httprunner/v4/hrp/pkg/boomer"
 )
 
 // boomCmd represents the boom command
@@ -30,7 +29,7 @@ var boomCmd = &cobra.Command{
 		}
 		setLogLevel(logLevel)
 	},
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		var paths []hrp.ITestCase
 		for _, arg := range args {
 			path := hrp.TestCasePath(arg)
@@ -42,7 +41,7 @@ var boomCmd = &cobra.Command{
 			err := builtin.LoadFile(boomArgs.profile, &boomArgs.Profile)
 			if err != nil {
 				log.Error().Err(err).Msg("failed to load profile")
-				os.Exit(1)
+				return err
 			}
 		}
 
@@ -67,6 +66,7 @@ var boomCmd = &cobra.Command{
 				hrpBoomer.SetExpectWorkers(boomArgs.expectWorkers, boomArgs.expectWorkersMaxWait)
 				hrpBoomer.SetSpawnCount(boomArgs.SpawnCount)
 				hrpBoomer.SetSpawnRate(boomArgs.SpawnRate)
+				hrpBoomer.SetRunTime(boomArgs.RunTime)
 			}
 			if boomArgs.autoStart {
 				hrpBoomer.InitBoomer()
@@ -88,6 +88,7 @@ var boomCmd = &cobra.Command{
 			hrpBoomer.InitBoomer()
 			hrpBoomer.Run(paths...)
 		}
+		return nil
 	},
 }
 
@@ -116,6 +117,7 @@ func init() {
 	boomCmd.Flags().StringVar(&boomArgs.RequestIncreaseRate, "request-increase-rate", "-1", "Request increase rate, disabled by default.")
 	boomCmd.Flags().Int64Var(&boomArgs.SpawnCount, "spawn-count", 1, "The number of users to spawn for load testing")
 	boomCmd.Flags().Float64Var(&boomArgs.SpawnRate, "spawn-rate", 1, "The rate for spawning users")
+	boomCmd.Flags().Int64Var(&boomArgs.RunTime, "run-time", 0, "Stop after the specified amount of time(s), Only used  --autostart. Defaults to run forever.")
 	boomCmd.Flags().Int64Var(&boomArgs.LoopCount, "loop-count", -1, "The specify running cycles for load testing")
 	boomCmd.Flags().StringVar(&boomArgs.MemoryProfile, "mem-profile", "", "Enable memory profiling.")
 	boomCmd.Flags().DurationVar(&boomArgs.MemoryProfileDuration, "mem-profile-duration", 30*time.Second, "Memory profile duration.")
@@ -139,13 +141,13 @@ func init() {
 	boomCmd.Flags().IntVar(&boomArgs.expectWorkersMaxWait, "expect-workers-max-wait", 120, "How many workers master should expect to connect before starting the test (only when --autostart is used")
 }
 
-func makeHRPBoomer() *hrp.HRPBoomer {
+func makeHRPBoomer() (*hrp.HRPBoomer, error) {
 	// if set profile, the priority is higher than the other commands
 	if boomArgs.profile != "" {
 		err := builtin.LoadFile(boomArgs.profile, &boomArgs)
 		if err != nil {
 			log.Error().Err(err).Msg("failed to load profile")
-			os.Exit(1)
+			return nil, err
 		}
 	}
 	hrpBoomer := hrp.NewStandaloneBoomer(boomArgs.SpawnCount, boomArgs.SpawnRate)
@@ -155,5 +157,5 @@ func makeHRPBoomer() *hrp.HRPBoomer {
 	hrpBoomer.SetProfile(&boomArgs.Profile)
 	hrpBoomer.EnableGracefulQuit(context.Background())
 	hrpBoomer.InitBoomer()
-	return hrpBoomer
+	return hrpBoomer, nil
 }

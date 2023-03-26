@@ -4,7 +4,6 @@ import (
 	"embed"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -14,6 +13,8 @@ import (
 
 	"github.com/httprunner/httprunner/v4/hrp"
 	"github.com/httprunner/httprunner/v4/hrp/internal/builtin"
+	"github.com/httprunner/httprunner/v4/hrp/internal/env"
+	"github.com/httprunner/httprunner/v4/hrp/internal/myexec"
 	"github.com/httprunner/httprunner/v4/hrp/internal/sdk"
 	"github.com/httprunner/httprunner/v4/hrp/internal/version"
 )
@@ -91,10 +92,10 @@ func CreateScaffold(projectName string, pluginType PluginType, venv string, forc
 	if err := builtin.CreateFolder(filepath.Join(projectName, "testcases")); err != nil {
 		return err
 	}
-	if err := builtin.CreateFolder(filepath.Join(projectName, "reports")); err != nil {
+	if err := builtin.CreateFolder(filepath.Join(projectName, env.ResultsDirName)); err != nil {
 		return err
 	}
-	if err := builtin.CreateFile(filepath.Join(projectName, "reports", ".keep"), ""); err != nil {
+	if err := builtin.CreateFile(filepath.Join(projectName, env.ResultsDirName, ".keep"), ""); err != nil {
 		return err
 	}
 
@@ -177,7 +178,7 @@ func CreateScaffold(projectName string, pluginType PluginType, venv string, forc
 func createGoPlugin(projectName string) error {
 	log.Info().Msg("start to create hashicorp go plugin")
 	// check go sdk
-	if err := builtin.ExecCommandInDir(exec.Command("go", "version"), projectName); err != nil {
+	if err := myexec.RunCommand("go", "version"); err != nil {
 		return errors.Wrap(err, "go sdk not installed")
 	}
 
@@ -207,9 +208,9 @@ func createPythonPlugin(projectName, venv string) error {
 
 	packages := []string{
 		fmt.Sprintf("funppy==%s", fungo.Version),
-		fmt.Sprintf("httprunner==%s", version.VERSION),
+		fmt.Sprintf("httprunner==%s", version.HttpRunnerMinimumVersion),
 	}
-	_, err = builtin.EnsurePython3Venv(venv, packages...)
+	_, err = myexec.EnsurePython3Venv(venv, packages...)
 	if err != nil {
 		return err
 	}
